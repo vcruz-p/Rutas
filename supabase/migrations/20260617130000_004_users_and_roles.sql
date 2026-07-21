@@ -1,6 +1,7 @@
 -- Tabla de perfiles de usuario con roles
 CREATE TABLE IF NOT EXISTS user_profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username TEXT NOT NULL UNIQUE,
   email TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'client' CHECK (role IN ('admin', 'client')),
   full_name TEXT,
@@ -127,9 +128,10 @@ CREATE POLICY "delete_routes" ON route_history FOR DELETE
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.user_profiles (id, email, role, full_name)
+  INSERT INTO public.user_profiles (id, username, email, role, full_name)
   VALUES (
     NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'role', 'client'),
     COALESCE(NEW.raw_user_meta_data->>'full_name', '')
@@ -155,7 +157,32 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Insertar un usuario admin por defecto (esto debe ejecutarse manualmente o mediante la UI de admin)
--- El password se debe establecer desde la UI de Supabase o mediante la API de auth
--- INSERT INTO auth.users (email, encrypted_password, email_confirmed_at, role) 
--- VALUES ('admin@cuba.com', crypt('admin123', gen_salt('bf')), now(), 'admin');
+-- Insertar un usuario admin por defecto (usuario: admin, contraseña: admin)
+-- Este script crea el usuario admin con credenciales: admin / admin
+DO $$
+DECLARE
+  admin_user_id UUID;
+BEGIN
+  -- Verificar si ya existe el usuario admin
+  IF NOT EXISTS (SELECT 1 FROM user_profiles WHERE username = 'admin') THEN
+    -- Crear usuario en auth.users
+    INSERT INTO auth.users (email, encrypted_password, email_confirmed_at, raw_user_meta_data)
+    VALUES (
+      'admin@localhost',
+      crypt('admin', gen_salt('bf')),
+      now(),
+      '{"username": "admin", "role": "admin", "full_name": "Administrador"}'::jsonb
+    )
+    RETURNING id INTO admin_user_id;
+    
+    -- Crear perfil de usuario admin
+    INSERT INTO public.user_profiles (id, username, email, role, full_name)
+    VALUES (
+      admin_user_id,
+      'admin',
+      'admin@localhost',
+      'admin',
+      'Administrador'
+    );
+  END IF;
+END $$;

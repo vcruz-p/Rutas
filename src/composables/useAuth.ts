@@ -7,7 +7,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export interface UserProfile {
   id: string
-  email: string
+  username: string
   role: 'admin' | 'client'
   full_name?: string
   created_at?: string
@@ -47,24 +47,20 @@ export interface RouteHistory {
 }
 
 // Auth functions
-export async function signUp(email: string, password: string, fullName: string, role: 'admin' | 'client' = 'client') {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-        role
-      }
-    }
-  })
-  if (error) throw error
-  return data
-}
-
-export async function signIn(email: string, password: string) {
+export async function signIn(username: string, password: string) {
+  // First, we need to get the email associated with this username from user_profiles
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('email')
+    .eq('username', username)
+    .single()
+  
+  if (!profile) {
+    throw new Error('Usuario no encontrado')
+  }
+  
   const { data, error } = await supabase.auth.signInWithPassword({
-    email,
+    email: profile.email,
     password
   })
   if (error) throw error
