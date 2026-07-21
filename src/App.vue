@@ -1,5 +1,14 @@
 <template>
-  <div class="app-container">
+  <div v-if="!isAuthenticated && !authChecking" class="auth-wrapper">
+    <LoginForm @auth-success="handleAuthSuccess" />
+  </div>
+  
+  <div v-else-if="authChecking" class="loading-app">
+    <div class="spinner-large"></div>
+    <span>Cargando...</span>
+  </div>
+  
+  <div v-else class="app-container">
     <header class="header">
       <div class="header-inner">
         <div class="header-title">
@@ -12,6 +21,11 @@
           </div>
         </div>
         <div class="header-actions">
+          <UserPanel 
+            :user-profile="userProfile" 
+            @logout="handleLogout"
+            @show-users="showUsersModal = true"
+          />
           <button class="history-btn" @click="toggleHistory" :class="{ active: showHistory }">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Historial
@@ -108,6 +122,12 @@
         </div>
       </div>
     </div>
+    
+    <!-- Users Modal for Admin -->
+    <UsersModal 
+      v-if="showUsersModal && userIsAdmin" 
+      @close="showUsersModal = false" 
+    />
   </div>
 </template>
 
@@ -117,13 +137,24 @@ import { useToast } from 'vue-toastification'
 import L from 'leaflet'
 import { loadVehicles, loadRouteHistory, saveRoute, deleteRoute } from './composables/useDatabase'
 import { useMap } from './composables/useMap'
+import { getCurrentUser, getUserProfile, UserProfile, isAdmin } from './composables/useAuth'
 import WaypointsPanel from './components/WaypointsPanel.vue'
 import VehiclePanel from './components/VehiclePanel.vue'
 import ResultsPanel from './components/ResultsPanel.vue'
 import HistoryPanel from './components/HistoryPanel.vue'
 import RouteDetailPanel from './components/RouteDetailPanel.vue'
+import LoginForm from './components/LoginForm.vue'
+import UserPanel from './components/UserPanel.vue'
+import UsersModal from './components/UsersModal.vue'
 
 const toast = useToast()
+
+// Auth state
+const isAuthenticated = ref(false)
+const authChecking = ref(true)
+const userProfile = ref<UserProfile | null>(null)
+const userIsAdmin = ref(false)
+const showUsersModal = ref(false)
 
 const mapEl = ref(null)
 const mapApi = useMap()
@@ -172,7 +203,10 @@ const routeInfo = computed(() => {
 // ─── Data Loading ──────────────────────────────────────────────
 async function loadAllVehicles() {
   try {
-    const data = await loadVehicles()
+    // Si el usuario es admin, cargar todos los vehículos
+    // Si es cliente, cargar solo los suyos
+    const userId = userIsAdmin.value ? undefined : userProfile.value?.id
+    const data = await loadVehicles(userId)
     vehicles.value = data
     if (data.length > 0 && !vehicleState.value.selectedVehicleId) {
       vehicleState.value.selectedVehicleId = data[0].id
@@ -186,7 +220,10 @@ async function loadAllVehicles() {
 
 async function loadAllRouteHistory() {
   try {
-    const data = await loadRouteHistory()
+    // Si el usuario es admin, cargar todo el historial
+    // Si es cliente, cargar solo el suyo
+    const userId = userIsAdmin.value ? undefined : userProfile.value?.id
+    const data = await loadRouteHistory(userId)
     routeHistory.value = data
   } catch (e) {
     console.error('Error loading route history:', e)
@@ -521,8 +558,60 @@ function loadRouteOnMap(route) {
   }
 }
 
+// ─── Auth Functions ──────────────────────────────────────────────
+async function checkAuth() {
+  authChecking.value = true
+  try {
+    const user = await getCurrentUser()
+    if (user) {
+      isAuthenticated.value = true
+      const profile = await getUserProfile()
+      userProfile.value = profile
+      userIsAdmin.value = profile?.role === 'admin'
+    }
+  } catch (e) {
+    console.error('Error checking auth:', e)
+  } finally {
+    authChecking.value = false
+  }
+}
+
+function handleAuthSuccess() {
+  isAuthenticated.value = true
+  loadUserProfile()
+}
+
+async function loadUserProfile() {
+  try {
+    const profile = await getUserProfile()
+    userProfile.value = profile
+    userIsAdmin.value = profile?.role === 'admin'
+    // Recargar datos con el contexto del usuario
+    await loadAllVehicles()
+    await loadAllRouteHistory()
+  } catch (e) {
+    console.error('Error loading user profile:', e)
+  }
+}
+
+async function handleLogout() {
+  isAuthenticated.value = false
+  userProfile.value = null
+  userIsAdmin.value = false
+  vehicles.value = []
+  routeHistory.value = []
+  clearAllWaypoints()
+}
+
 // ─── Lifecycle ─────────────────────────────────────────────────
 onMounted(async () => {
+  // Primero verificar autenticación
+  await checkAuth()
+  
+  if (!isAuthenticated.value) {
+    return // No cargar nada más si no está autenticado
+  }
+  
   // Verificar si hay parámetros de ruta en la URL para cargar una ruta compartida
   const urlParams = new URLSearchParams(window.location.search)
   const vehicleParam = urlParams.get('vehicle')
