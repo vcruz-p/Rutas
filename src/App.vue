@@ -50,8 +50,12 @@
         <ResultsPanel
           :routeInfo="routeInfo"
           :isSavingRoute="isSavingRoute"
+          :selectedVehicle="vehicleState.selectedVehicle"
+          :waypoints="waypoints"
+          :routeDistance="routeDistance"
+          :routeDuration="routeDuration"
           @save="saveCurrentRoute"
-          @send="sendCurrentRoute"
+          @send="handleSendRoute"
         />
       </div>
 
@@ -428,7 +432,7 @@ async function saveCurrentRoute() {
   }
 }
 
-function sendCurrentRoute() {
+function handleSendRoute(method) {
   if (waypoints.value.length < 2 || routeDistance.value === 0) {
     toast.error('Debe agregar al menos 2 puntos y calcular la ruta')
     return
@@ -438,13 +442,48 @@ function sendCurrentRoute() {
   const dest = waypoints.value[waypoints.value.length - 1]
   const summary = `🚗 *Ruta Planificada*\n\n📍 *Origen:* ${origin.label || `${origin.latlng.lat.toFixed(4)}, ${origin.latlng.lng.toFixed(4)}`}\n🏁 *Destino:* ${dest.label || `${dest.latlng.lat.toFixed(4)}, ${dest.latlng.lng.toFixed(4)}`}\n\n📏 *Distancia:* ${routeDistance.value.toFixed(1)} km\n⏱️ *Duración estimada:* ${formatDur(routeDuration.value)}\n⛽ *Combustible necesario:* ${routeInfo.value.fuelNeeded.toFixed(2)} L\n💰 *Costo estimado:* ${fmtCur(routeInfo.value.cost)}\n\n_Viaje planificado con Planificador de Rutas Cuba_`
   
-  const encodedText = encodeURIComponent(summary)
-  const phone = vehicleState.value.selectedVehicle?.phone_number || ''
-  
-  if (phone) {
-    window.open(`https://wa.me/${phone.replace(/[^0-9+]/g, '')}?text=${encodedText}`, '_blank')
-  } else {
-    window.open(`https://wa.me/?text=${encodedText}`, '_blank')
+  if (method === 'whatsapp') {
+    const encodedText = encodeURIComponent(summary)
+    const phone = vehicleState.value.selectedVehicle?.phone_number || ''
+    
+    if (phone) {
+      window.open(`https://wa.me/${phone.replace(/[^0-9+]/g, '')}?text=${encodedText}`, '_blank')
+    } else {
+      window.open(`https://wa.me/?text=${encodedText}`, '_blank')
+    }
+  } else if (method === 'copy') {
+    // Generar un enlace shareable con los parámetros de la ruta
+    const baseUrl = window.location.origin + window.location.pathname
+    const routeParams = new URLSearchParams()
+    
+    // Agregar vehículo si existe
+    if (vehicleState.value.selectedVehicleId) {
+      routeParams.set('vehicle', vehicleState.value.selectedVehicleId.toString())
+    }
+    
+    // Agregar waypoints
+    waypoints.value.forEach((wp, i) => {
+      routeParams.set(`wp${i}_lat`, wp.latlng.lat.toString())
+      routeParams.set(`wp${i}_lng`, wp.latlng.lng.toString())
+      if (wp.label) {
+        routeParams.set(`wp${i}_label`, wp.label)
+      }
+    })
+    
+    const shareUrl = `${baseUrl}?${routeParams.toString()}`
+    
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      toast.success('Enlace de ruta copiado al portapapeles')
+    }).catch(() => {
+      // Fallback para navegadores que no soportan clipboard API
+      const textArea = document.createElement('textarea')
+      textArea.value = shareUrl
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      toast.success('Enlace de ruta copiado al portapapeles')
+    })
   }
 }
 
@@ -484,9 +523,54 @@ function loadRouteOnMap(route) {
 
 // ─── Lifecycle ─────────────────────────────────────────────────
 onMounted(async () => {
+  // Verificar si hay parámetros de ruta en la URL para cargar una ruta compartida
+  const urlParams = new URLSearchParams(window.location.search)
+  const vehicleParam = urlParams.get('vehicle')
+  
+  // Cargar waypoints desde la URL si existen
+  let hasWaypointsFromUrl = false
+  const waypointsFromUrl = []
+  
+  for (let i = 0; i < 10; i++) {
+    const lat = urlParams.get(`wp${i}_lat`)
+    const lng = urlParams.get(`wp${i}_lng`)
+    const label = urlParams.get(`wp${i}_label`)
+    
+    if (lat && lng) {
+      waypointsFromUrl.push({
+        latlng: L.latLng(parseFloat(lat), parseFloat(lng)),
+        label: label || ''
+      })
+      hasWaypointsFromUrl = true
+    }
+  }
+  
   mapApi.initMap(mapEl.value, onMapClick)
   await loadAllVehicles()
   await loadAllRouteHistory()
+  
+  // Si hay vehículo en la URL, seleccionarlo
+  if (vehicleParam && vehicles.value.length > 0) {
+    const foundVehicle = vehicles.value.find(v => v.id.toString() === vehicleParam)
+    if (foundVehicle) {
+      vehicleState.value.selectedVehicleId = foundVehicle.id
+      vehicleState.value.selectedVehicle = foundVehicle
+    }
+  }
+  
+  // Si hay waypoints en la URL, cargarlos
+  if (hasWaypointsFromUrl && waypointsFromUrl.length >= 2) {
+    waypoints.value = waypointsFromUrl
+    waypointsFromUrl.forEach((wp, i) => {
+      mapApi.createWaypointMarker(wp, i, waypointsFromUrl.length)
+    })
+    calculateMultiRoute()
+    
+    // Limpiar la URL sin recargar
+    window.history.replaceState({}, document.title, window.location.pathname)
+    
+    toast.success('Ruta cargada desde enlace compartido')
+  }
 })
 
 onUnmounted(() => {

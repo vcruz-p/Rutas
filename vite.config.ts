@@ -5,5 +5,8 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     allowedHosts: ['jason-governance-enable-tested.trycloudflare.com']
+  },
+  optimizeDeps: {
+    include: ['vue-toastification']
   }
 })
