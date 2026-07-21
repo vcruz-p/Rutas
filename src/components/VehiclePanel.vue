@@ -66,7 +66,10 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { useToast } from 'vue-toastification'
 import { saveVehicle as saveVehicleDb, deleteVehicle as deleteVehicleDb } from '../composables/useDatabase'
+
+const toast = useToast()
 
 const props = defineProps({
   vehicles: { type: Array, default: () => [] },
@@ -123,7 +126,7 @@ function cancelAdd() {
 
 async function saveVehicle() {
   if (!newVehicle.value.name || !newVehicle.value.consumption) {
-    alert('Nombre y consumo son requeridos')
+    toast.error('Nombre y consumo son requeridos')
     return
   }
 
@@ -134,9 +137,10 @@ async function saveVehicle() {
     selectedVehicle.value = saved
     showAddVehicle.value = false
     newVehicle.value = { name: '', consumption: 12, fuelType: 'Gasolina' }
+    toast.success('Vehículo guardado')
   } catch (error) {
     console.error('Error saving vehicle:', error)
-    alert('Error al guardar vehiculo: ' + (error.message || 'Error desconocido'))
+    toast.error('Error al guardar vehículo: ' + (error as Error).message)
   }
 }
 
@@ -151,9 +155,10 @@ async function deleteVehicle(id) {
       selectedVehicleId.value = props.vehicles[0]?.id || null
       selectedVehicle.value = props.vehicles[0] || null
     }
+    toast.success('Vehículo eliminado')
   } catch (error) {
     console.error('Error deleting vehicle:', error)
-    alert('Error al eliminar vehiculo: ' + (error.message || 'Error desconocido'))
+    toast.error('Error al eliminar vehículo: ' + (error as Error).message)
   }
 }
 </script>
