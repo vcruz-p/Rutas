@@ -8,12 +8,12 @@
         <h1>Planificador de Rutas Cuba</h1>
       </div>
 
-      <div v-if="mode === 'login'" class="auth-form">
+      <div class="auth-form">
         <h2>Iniciar Sesión</h2>
         <form @submit.prevent="handleLogin">
           <div class="form-group">
-            <label>Email</label>
-            <input type="email" v-model="email" required placeholder="tu@email.com" />
+            <label>Usuario</label>
+            <input type="text" v-model="username" required placeholder="tu_usuario" />
           </div>
           <div class="form-group">
             <label>Contraseña</label>
@@ -23,42 +23,6 @@
             {{ loading ? 'Cargando...' : 'Entrar' }}
           </button>
         </form>
-        <p class="auth-switch">
-          ¿No tienes cuenta? 
-          <a href="#" @click.prevent="mode = 'register'">Regístrate aquí</a>
-        </p>
-      </div>
-
-      <div v-else-if="mode === 'register'" class="auth-form">
-        <h2>Crear Cuenta</h2>
-        <form @submit.prevent="handleRegister">
-          <div class="form-group">
-            <label>Nombre Completo</label>
-            <input type="text" v-model="fullName" required placeholder="Juan Pérez" />
-          </div>
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" v-model="email" required placeholder="tu@email.com" />
-          </div>
-          <div class="form-group">
-            <label>Contraseña</label>
-            <input type="password" v-model="password" required placeholder="Mínimo 6 caracteres" minlength="6" />
-          </div>
-          <div class="form-group">
-            <label>Tipo de Cuenta</label>
-            <select v-model="role">
-              <option value="client">Cliente - Ver mis vehículos y rutas</option>
-              <option value="admin">Administrador - Gestión completa</option>
-            </select>
-          </div>
-          <button type="submit" class="btn-primary" :disabled="loading">
-            {{ loading ? 'Creando...' : 'Registrarse' }}
-          </button>
-        </form>
-        <p class="auth-switch">
-          ¿Ya tienes cuenta? 
-          <a href="#" @click.prevent="mode = 'login'">Inicia sesión aquí</a>
-        </p>
       </div>
 
       <div v-if="error" class="error-message">{{ error }}</div>
@@ -69,15 +33,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useToast } from 'vue-toastification'
-import { signIn, signUp } from '../composables/useAuth'
+import { signIn } from '../composables/useAuth'
 
 const toast = useToast()
 
-const mode = ref<'login' | 'register'>('login')
-const email = ref('')
+const username = ref('')
 const password = ref('')
-const fullName = ref('')
-const role = ref<'admin' | 'client'>('client')
 const loading = ref(false)
 const error = ref('')
 
@@ -86,7 +47,7 @@ const emit = defineEmits<{
 }>()
 
 async function handleLogin() {
-  if (!email.value || !password.value) {
+  if (!username.value || !password.value) {
     error.value = 'Por favor completa todos los campos'
     return
   }
@@ -95,37 +56,11 @@ async function handleLogin() {
   error.value = ''
 
   try {
-    await signIn(email.value, password.value)
+    await signIn(username.value, password.value)
     toast.success('¡Bienvenido!')
     emit('auth-success')
   } catch (e: any) {
     error.value = e.message || 'Error al iniciar sesión'
-    toast.error(error.value)
-  } finally {
-    loading.value = false
-  }
-}
-
-async function handleRegister() {
-  if (!email.value || !password.value || !fullName.value) {
-    error.value = 'Por favor completa todos los campos'
-    return
-  }
-
-  if (password.value.length < 6) {
-    error.value = 'La contraseña debe tener al menos 6 caracteres'
-    return
-  }
-
-  loading.value = true
-  error.value = ''
-
-  try {
-    await signUp(email.value, password.value, fullName.value, role.value)
-    toast.success('Cuenta creada. Por favor verifica tu email.')
-    mode.value = 'login'
-  } catch (e: any) {
-    error.value = e.message || 'Error al crear cuenta'
     toast.error(error.value)
   } finally {
     loading.value = false
