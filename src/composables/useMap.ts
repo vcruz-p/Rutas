@@ -18,6 +18,10 @@ export function useMap() {
   const userMarker = ref<L.Marker | null>(null)
   const trackPolyline = ref<L.Polyline | null>(null)
   const trackPoints = ref<[number, number][]>([])
+  const savedRoutes = ref<{ id: string; polyline: L.Polyline; color: string }[]>([])
+  
+  const routeColors = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0891b2', '#ca8a04']
+  let currentColorIndex = 0
 
   function initMap(el: string, onClick: (event: L.LeafletMouseEvent) => void): L.Map {
     map.value = L.map(el, { zoomControl: true }).setView([21.5, -77.5], 7)
@@ -97,13 +101,45 @@ export function useMap() {
     routeLayers.value = []
   }
 
-  function drawRoute(pts: LatLng[]): void {
+  function drawRoute(pts: LatLng[], color?: string): void {
     clearRoute()
+    const routeColor = color || routeColors[currentColorIndex % routeColors.length]
+    currentColorIndex++
+    
     const shadow = L.polyline(pts, { color: '#000', weight: 12, opacity: 0.2, lineCap: 'round', lineJoin: 'round' }).addTo(map.value!)
-    const main = L.polyline(pts, { color: '#2563eb', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }).addTo(map.value!)
-    const inner = L.polyline(pts, { color: '#60a5fa', weight: 2, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(map.value!)
+    const main = L.polyline(pts, { color: routeColor, weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }).addTo(map.value!)
+    const inner = L.polyline(pts, { color: lightenColor(routeColor, 30), weight: 2, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(map.value!)
     routeLayers.value = [shadow, main, inner]
     map.value!.fitBounds(L.latLngBounds(pts), { padding: [60, 60] })
+  }
+  
+  function lightenColor(color: string, percent: number): string {
+    const num = parseInt(color.replace('#', ''), 16)
+    const amt = Math.round(2.55 * percent)
+    const R = (num >> 16) + amt
+    const G = ((num >> 8) & 0x00FF) + amt
+    const B = (num & 0x0000FF) + amt
+    return '#' + (0x1000000 + 
+      (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 + 
+      (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 + 
+      (B < 255 ? (B < 1 ? 0 : B) : 255)
+    ).toString(16).slice(1)
+  }
+  
+  function drawSavedRoute(id: string, pts: LatLng[]): void {
+    const routeColor = routeColors[savedRoutes.value.length % routeColors.length]
+    const shadow = L.polyline(pts, { color: '#000', weight: 12, opacity: 0.2, lineCap: 'round', lineJoin: 'round' }).addTo(map.value!)
+    const main = L.polyline(pts, { color: routeColor, weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }).addTo(map.value!)
+    const inner = L.polyline(pts, { color: lightenColor(routeColor, 30), weight: 2, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(map.value!)
+    
+    savedRoutes.value.push({ id, polyline: main, color: routeColor })
+  }
+  
+  function clearSavedRoutes(): void {
+    savedRoutes.value.forEach(r => {
+      map.value!.removeLayer(r.polyline)
+    })
+    savedRoutes.value = []
   }
 
   function setView(latlng: LatLng, zoom: number): void {
@@ -164,6 +200,8 @@ export function useMap() {
     removeUserMarker,
     addTrackPoint,
     clearTrack,
-    destroy
+    destroy,
+    drawSavedRoute,
+    clearSavedRoutes
   }
 }

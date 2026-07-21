@@ -27,6 +27,20 @@
           </select>
         </div>
       </div>
+      <div class="form-group">
+        <label>ID Tracker (opcional)</label>
+        <input v-model="newVehicle.tracker_id" type="text" class="input" placeholder="ID del dispositivo GPS tracker" />
+      </div>
+      <div class="form-group">
+        <label>Celular (opcional)</label>
+        <input v-model="newVehicle.phone_number" type="tel" class="input" placeholder="+53 5XXX XXXX" />
+      </div>
+      <div class="form-group checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="newVehicle.use_phone_gps" />
+          <span>Usar GPS del celular en lugar del tracker</span>
+        </label>
+      </div>
       <div class="form-actions">
         <button class="btn-save" @click="saveVehicle" :disabled="!newVehicle.name || !newVehicle.consumption">Guardar vehiculo</button>
         <button class="btn-cancel" @click="cancelAdd">Cancelar</button>
@@ -46,6 +60,9 @@
       <div class="vehicle-specs" v-if="selectedVehicle">
         <div class="spec"><span class="spec-l">Consumo</span><span class="spec-v">{{ selectedVehicle.consumption }} km/L</span></div>
         <div class="spec"><span class="spec-l">Combustible</span><span class="spec-v">{{ selectedVehicle.fuel_type || selectedVehicle.fuelType }}</span></div>
+        <div class="spec" v-if="selectedVehicle.tracker_id"><span class="spec-l">Tracker ID</span><span class="spec-v">{{ selectedVehicle.tracker_id }}</span></div>
+        <div class="spec" v-if="selectedVehicle.phone_number"><span class="spec-l">Celular</span><span class="spec-v">{{ selectedVehicle.phone_number }}</span></div>
+        <div class="spec" v-if="selectedVehicle.use_phone_gps"><span class="spec-l">GPS</span><span class="spec-v accent">Usando celular</span></div>
         <button class="btn-delete-vehicle" @click="deleteVehicle(selectedVehicle.id)" v-if="selectedVehicle.id" title="Eliminar vehiculo">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
@@ -83,7 +100,7 @@ const selectedVehicle = ref(props.modelValue?.selectedVehicle || null)
 const customConsumption = ref(props.modelValue?.customConsumption || null)
 const fuelPrice = ref(props.modelValue?.fuelPrice || 132)
 const showAddVehicle = ref(false)
-const newVehicle = ref({ name: '', consumption: 12, fuelType: 'Gasolina' })
+const newVehicle = ref({ name: '', consumption: 12, fuelType: 'Gasolina', tracker_id: '', phone_number: '', use_phone_gps: false })
 
 const currentVehicle = computed(() => {
   return props.vehicles.find(v => v.id === selectedVehicleId.value) || null
@@ -121,7 +138,7 @@ function onVehicleSelect() {
 
 function cancelAdd() {
   showAddVehicle.value = false
-  newVehicle.value = { name: '', consumption: 12, fuelType: 'Gasolina' }
+  newVehicle.value = { name: '', consumption: 12, fuelType: 'Gasolina', tracker_id: '', phone_number: '', use_phone_gps: false }
 }
 
 async function saveVehicle() {
@@ -136,7 +153,7 @@ async function saveVehicle() {
     selectedVehicleId.value = saved.id
     selectedVehicle.value = saved
     showAddVehicle.value = false
-    newVehicle.value = { name: '', consumption: 12, fuelType: 'Gasolina' }
+    newVehicle.value = { name: '', consumption: 12, fuelType: 'Gasolina', tracker_id: '', phone_number: '', use_phone_gps: false }
     toast.success('Vehículo guardado')
   } catch (error) {
     console.error('Error saving vehicle:', error)
@@ -162,3 +179,29 @@ async function deleteVehicle(id) {
   }
 }
 </script>
+
+<style scoped>
+.checkbox-group {
+  margin-top: 0.5rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--gray-300);
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+.spec-v.accent {
+  color: #f59e0b;
+  font-weight: 600;
+}
+</style>
