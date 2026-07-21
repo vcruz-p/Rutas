@@ -1,4 +1,5 @@
 import initSqlJs, { Database } from 'sql.js'
+import sqlWasm from 'sql.js/dist/sql-wasm.wasm?url'
 
 interface Vehicle {
   id?: number
@@ -45,7 +46,7 @@ async function getDb(): Promise<Database> {
   
   try {
     const SQL = await initSqlJs({
-      locateFile: (file: string) => `https://sql.js.org/dist/${file}`
+      locateFile: () => sqlWasm
     })
     
     db = new SQL.Database()
