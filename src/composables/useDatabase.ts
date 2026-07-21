@@ -28,52 +28,76 @@ interface RouteHistory {
 
 let db: Database | null = null
 let dbReady = false
+let dbInitializing = false
 
 async function getDb(): Promise<Database> {
   if (db) return db
   
-  const SQL = await initSqlJs()
-  db = new SQL.Database()
+  if (dbInitializing) {
+    // Esperar a que otra inicialización termine
+    while (dbInitializing && !db) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+    if (db) return db
+  }
   
-  // Crear tablas
-  db.run(`
-    CREATE TABLE IF NOT EXISTS vehicles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      consumption REAL NOT NULL,
-      fuel_type TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `)
+  dbInitializing = true
   
-  db.run(`
-    CREATE TABLE IF NOT EXISTS route_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      vehicle_id INTEGER,
-      vehicle_name TEXT NOT NULL,
-      origin_lat REAL NOT NULL,
-      origin_lng REAL NOT NULL,
-      origin_label TEXT,
-      dest_lat REAL NOT NULL,
-      dest_lng REAL NOT NULL,
-      dest_label TEXT,
-      waypoints TEXT,
-      distance_km REAL NOT NULL,
-      duration_seconds REAL NOT NULL,
-      fuel_consumed REAL NOT NULL,
-      fuel_price REAL NOT NULL,
-      total_cost REAL NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `)
-  
-  dbReady = true
-  return db
+  try {
+    const SQL = await initSqlJs({
+      locateFile: (file: string) => `https://sql.js.org/dist/${file}`
+    })
+    
+    db = new SQL.Database()
+    
+    console.log('Base de datos inicializada correctamente')
+    
+    // Crear tablas
+    db.run(`
+      CREATE TABLE IF NOT EXISTS vehicles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        consumption REAL NOT NULL,
+        fuel_type TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    
+    db.run(`
+      CREATE TABLE IF NOT EXISTS route_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        vehicle_id INTEGER,
+        vehicle_name TEXT NOT NULL,
+        origin_lat REAL NOT NULL,
+        origin_lng REAL NOT NULL,
+        origin_label TEXT,
+        dest_lat REAL NOT NULL,
+        dest_lng REAL NOT NULL,
+        dest_label TEXT,
+        waypoints TEXT,
+        distance_km REAL NOT NULL,
+        duration_seconds REAL NOT NULL,
+        fuel_consumed REAL NOT NULL,
+        fuel_price REAL NOT NULL,
+        total_cost REAL NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    
+    dbReady = true
+    return db
+  } catch (error) {
+    console.error('Error fatal al inicializar la base de datos:', error)
+    dbInitializing = false
+    throw error
+  } finally {
+    dbInitializing = false
+  }
 }
 
 export async function loadVehicles(): Promise<Vehicle[]> {
-  await getDb()
-  const result = db!.exec('SELECT * FROM vehicles ORDER BY created_at DESC')
+  const database = await getDb()
+  const result = database.exec('SELECT * FROM vehicles ORDER BY created_at DESC')
   if (!result.length) return []
   
   const columns = result[0].columns
@@ -85,13 +109,13 @@ export async function loadVehicles(): Promise<Vehicle[]> {
 }
 
 export async function saveVehicle(vehicle: Vehicle): Promise<Vehicle & { id: number }> {
-  await getDb()
-  db!.run(
+  const database = await getDb()
+  database.run(
     'INSERT INTO vehicles (name, consumption, fuel_type) VALUES (?, ?, ?)',
     [vehicle.name, vehicle.consumption, vehicle.fuelType]
   )
   
-  const result = db!.exec('SELECT last_insert_rowid() as id')
+  const result = database.exec('SELECT last_insert_rowid() as id')
   const id = result[0].values[0][0] as number
   
   const vehicleData = { ...vehicle, id }
@@ -99,13 +123,13 @@ export async function saveVehicle(vehicle: Vehicle): Promise<Vehicle & { id: num
 }
 
 export async function deleteVehicle(id: number): Promise<void> {
-  await getDb()
-  db!.run('DELETE FROM vehicles WHERE id = ?', [id])
+  const database = await getDb()
+  database.run('DELETE FROM vehicles WHERE id = ?', [id])
 }
 
 export async function loadRouteHistory(): Promise<RouteHistory[]> {
-  await getDb()
-  const result = db!.exec('SELECT * FROM route_history ORDER BY created_at DESC LIMIT 50')
+  const database = await getDb()
+  const result = database.exec('SELECT * FROM route_history ORDER BY created_at DESC LIMIT 50')
   if (!result.length) return []
   
   const columns = result[0].columns
@@ -126,6 +150,17 @@ export async function loadRouteHistory(): Promise<RouteHistory[]> {
 
 export async function saveRoute(routeData: RouteHistory): Promise<void> {
   const database = await getDb()
+  
+  console.log('Guardando ruta:', routeData)
+  
+  // Validar datos requeridos
+  if (!routeData.origin_lat || !routeData.origin_lng || !routeData.dest_lat || !routeData.dest_lng) {
+    throw new Error('Datos de origen/destino inválidos')
+  }
+  
+  if (!routeData.distance_km || routeData.distance_km <= 0) {
+    throw new Error('Distancia inválida')
+  }
   
   // Asegurar que waypoints sea un array válido antes de convertir a JSON
   const waypointsArray = Array.isArray(routeData.waypoints) ? routeData.waypoints : []
@@ -155,6 +190,8 @@ export async function saveRoute(routeData: RouteHistory): Promise<void> {
         routeData.total_cost
       ]
     )
+    
+    console.log('Ruta guardada exitosamente')
   } catch (error) {
     console.error('Error al guardar la ruta:', error)
     throw error
@@ -162,6 +199,6 @@ export async function saveRoute(routeData: RouteHistory): Promise<void> {
 }
 
 export async function deleteRoute(id: number): Promise<void> {
-  await getDb()
-  db!.run('DELETE FROM route_history WHERE id = ?', [id])
+  const database = await getDb()
+  database.run('DELETE FROM route_history WHERE id = ?', [id])
 }
