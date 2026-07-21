@@ -66,7 +66,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { supabase } from '../composables/useSupabase.js'
+import { saveVehicle as saveVehicleDb, deleteVehicle as deleteVehicleDb } from '../composables/useDatabase.js'
 
 const props = defineProps({
   vehicles: { type: Array, default: () => [] },
@@ -127,43 +127,33 @@ async function saveVehicle() {
     return
   }
 
-  const { data, error } = await supabase.from('vehicles').insert([{
-    name: newVehicle.value.name,
-    consumption: newVehicle.value.consumption,
-    fuel_type: newVehicle.value.fuelType
-  }]).select()
-
-  if (error) {
-    console.error('Error saving vehicle:', error)
-    alert('Error al guardar vehiculo: ' + error.message)
-    return
-  }
-
-  if (data && data.length > 0) {
-    const saved = data[0]
+  try {
+    const saved = await saveVehicleDb(newVehicle.value)
     emit('vehicles-changed')
     selectedVehicleId.value = saved.id
     selectedVehicle.value = saved
     showAddVehicle.value = false
     newVehicle.value = { name: '', consumption: 12, fuelType: 'Gasolina' }
+  } catch (error) {
+    console.error('Error saving vehicle:', error)
+    alert('Error al guardar vehiculo: ' + (error.message || 'Error desconocido'))
   }
 }
 
 async function deleteVehicle(id) {
   if (!confirm('Eliminar este vehiculo?')) return
 
-  const { error } = await supabase.from('vehicles').delete().eq('id', id)
-  if (error) {
+  try {
+    await deleteVehicleDb(id)
+    emit('vehicles-changed')
+
+    if (selectedVehicleId.value === id) {
+      selectedVehicleId.value = props.vehicles[0]?.id || null
+      selectedVehicle.value = props.vehicles[0] || null
+    }
+  } catch (error) {
     console.error('Error deleting vehicle:', error)
-    alert('Error al eliminar vehiculo: ' + error.message)
-    return
-  }
-
-  emit('vehicles-changed')
-
-  if (selectedVehicleId.value === id) {
-    selectedVehicleId.value = props.vehicles[0]?.id || null
-    selectedVehicle.value = props.vehicles[0] || null
+    alert('Error al eliminar vehiculo: ' + (error.message || 'Error desconocido'))
   }
 }
 </script>

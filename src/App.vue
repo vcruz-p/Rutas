@@ -109,7 +109,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import L from 'leaflet'
-import { loadVehicles, loadRouteHistory, saveRoute, deleteRoute } from './composables/useSupabase.js'
+import { loadVehicles, loadRouteHistory, saveRoute, deleteRoute } from './composables/useDatabase.js'
 import { useMap } from './composables/useMap.js'
 import WaypointsPanel from './components/WaypointsPanel.vue'
 import VehiclePanel from './components/VehiclePanel.vue'

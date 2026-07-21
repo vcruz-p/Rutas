@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.108.2",
     "leaflet": "^1.9.4",
+    "sql.js": "^1.14.1",
     "vue": "^3.4.21"
   },
   "devDependencies": {
