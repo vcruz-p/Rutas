@@ -108,6 +108,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useToast } from 'vue-toastification'
 import L from 'leaflet'
 import { loadVehicles, loadRouteHistory, saveRoute, deleteRoute } from './composables/useDatabase'
 import { useMap } from './composables/useMap'
@@ -116,6 +117,8 @@ import VehiclePanel from './components/VehiclePanel.vue'
 import ResultsPanel from './components/ResultsPanel.vue'
 import HistoryPanel from './components/HistoryPanel.vue'
 import RouteDetailPanel from './components/RouteDetailPanel.vue'
+
+const toast = useToast()
 
 const mapEl = ref(null)
 const mapApi = useMap()
@@ -172,6 +175,7 @@ async function loadAllVehicles() {
     }
   } catch (e) {
     console.error('Error loading vehicles:', e)
+    toast.error('Error al cargar vehículos: ' + (e as Error).message)
   }
 }
 
@@ -181,6 +185,7 @@ async function loadAllRouteHistory() {
     routeHistory.value = data
   } catch (e) {
     console.error('Error loading route history:', e)
+    toast.error('Error al cargar historial: ' + (e as Error).message)
   }
 }
 
@@ -369,13 +374,18 @@ async function deleteRouteItem(id) {
       selectedRouteId.value = null
       selectedRouteDetail.value = null
     }
+    toast.success('Ruta eliminada')
   } catch (e) {
     console.error('Error deleting route:', e)
+    toast.error('Error al eliminar ruta: ' + (e as Error).message)
   }
 }
 
 async function saveCurrentRoute() {
-  if (waypoints.value.length < 2 || routeDistance.value === 0) return
+  if (waypoints.value.length < 2 || routeDistance.value === 0) {
+    toast.error('Debe agregar al menos 2 puntos y calcular la ruta')
+    return
+  }
   isSavingRoute.value = true
 
   const origin = waypoints.value[0]
@@ -399,10 +409,10 @@ async function saveCurrentRoute() {
       total_cost: routeInfo.value.cost
     })
     await loadAllRouteHistory()
-    alert('Ruta guardada en el historial!')
+    toast.success('Ruta guardada en el historial!')
   } catch (e) {
     console.error('Error saving route:', e)
-    alert('Error al guardar la ruta: ' + (e.message || 'Error desconocido'))
+    toast.error('Error al guardar la ruta: ' + (e as Error).message)
   } finally {
     isSavingRoute.value = false
   }
