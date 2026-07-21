@@ -387,6 +387,12 @@ async function saveCurrentRoute() {
     toast.error('Debe agregar al menos 2 puntos y calcular la ruta')
     return
   }
+  
+  if (!vehicleState.value.selectedVehicleId) {
+    toast.warning('Seleccione un vehículo para guardar la ruta')
+    return
+  }
+  
   isSavingRoute.value = true
 
   const origin = waypoints.value[0]
@@ -411,6 +417,9 @@ async function saveCurrentRoute() {
     })
     await loadAllRouteHistory()
     toast.success('Ruta guardada en el historial!')
+    
+    // Limpiar waypoints para comenzar nueva ruta
+    clearAllWaypoints()
   } catch (e) {
     console.error('Error saving route:', e)
     toast.error('Error al guardar la ruta: ' + (e as Error).message)
