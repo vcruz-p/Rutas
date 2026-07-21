@@ -158,7 +158,7 @@ export async function saveRoute(routeData: RouteHistory): Promise<void> {
     throw new Error('Datos de origen/destino inválidos')
   }
   
-  if (!routeData.distance_km || routeData.distance_km <= 0) {
+  if (typeof routeData.distance_km !== 'number' || routeData.distance_km <= 0) {
     throw new Error('Distancia inválida')
   }
   
@@ -167,6 +167,9 @@ export async function saveRoute(routeData: RouteHistory): Promise<void> {
   const waypointsJson = JSON.stringify(waypointsArray)
   
   try {
+    // Iniciar transacción explícita
+    database.run('BEGIN TRANSACTION')
+    
     database.run(
       `INSERT INTO route_history (
         vehicle_id, vehicle_name, origin_lat, origin_lng, origin_label,
@@ -184,15 +187,24 @@ export async function saveRoute(routeData: RouteHistory): Promise<void> {
         routeData.dest_label ?? null,
         waypointsJson,
         routeData.distance_km,
-        routeData.duration_seconds,
-        routeData.fuel_consumed,
-        routeData.fuel_price,
-        routeData.total_cost
+        routeData.duration_seconds ?? 0,
+        routeData.fuel_consumed ?? 0,
+        routeData.fuel_price ?? 0,
+        routeData.total_cost ?? 0
       ]
     )
     
+    // Commit explícito
+    database.run('COMMIT')
+    
     console.log('Ruta guardada exitosamente')
   } catch (error) {
+    // Rollback en caso de error
+    try {
+      database.run('ROLLBACK')
+    } catch (rollbackError) {
+      console.error('Error en rollback:', rollbackError)
+    }
     console.error('Error al guardar la ruta:', error)
     throw error
   }
