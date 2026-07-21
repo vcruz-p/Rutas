@@ -125,32 +125,40 @@ export async function loadRouteHistory(): Promise<RouteHistory[]> {
 }
 
 export async function saveRoute(routeData: RouteHistory): Promise<void> {
-  await getDb()
-  const waypointsJson = JSON.stringify(routeData.waypoints || [])
+  const database = await getDb()
   
-  db!.run(
-    `INSERT INTO route_history (
-      vehicle_id, vehicle_name, origin_lat, origin_lng, origin_label,
-      dest_lat, dest_lng, dest_label, waypoints,
-      distance_km, duration_seconds, fuel_consumed, fuel_price, total_cost
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      routeData.vehicle_id || null,
-      routeData.vehicle_name,
-      routeData.origin_lat,
-      routeData.origin_lng,
-      routeData.origin_label || null,
-      routeData.dest_lat,
-      routeData.dest_lng,
-      routeData.dest_label || null,
-      waypointsJson,
-      routeData.distance_km,
-      routeData.duration_seconds,
-      routeData.fuel_consumed,
-      routeData.fuel_price,
-      routeData.total_cost
-    ]
-  )
+  // Asegurar que waypoints sea un array válido antes de convertir a JSON
+  const waypointsArray = Array.isArray(routeData.waypoints) ? routeData.waypoints : []
+  const waypointsJson = JSON.stringify(waypointsArray)
+  
+  try {
+    database.run(
+      `INSERT INTO route_history (
+        vehicle_id, vehicle_name, origin_lat, origin_lng, origin_label,
+        dest_lat, dest_lng, dest_label, waypoints,
+        distance_km, duration_seconds, fuel_consumed, fuel_price, total_cost
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        routeData.vehicle_id ?? null,
+        routeData.vehicle_name,
+        routeData.origin_lat,
+        routeData.origin_lng,
+        routeData.origin_label ?? null,
+        routeData.dest_lat,
+        routeData.dest_lng,
+        routeData.dest_label ?? null,
+        waypointsJson,
+        routeData.distance_km,
+        routeData.duration_seconds,
+        routeData.fuel_consumed,
+        routeData.fuel_price,
+        routeData.total_cost
+      ]
+    )
+  } catch (error) {
+    console.error('Error al guardar la ruta:', error)
+    throw error
+  }
 }
 
 export async function deleteRoute(id: number): Promise<void> {
