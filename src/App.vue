@@ -51,6 +51,7 @@
           :routeInfo="routeInfo"
           :isSavingRoute="isSavingRoute"
           @save="saveCurrentRoute"
+          @send="sendCurrentRoute"
         />
       </div>
 
@@ -416,6 +417,36 @@ async function saveCurrentRoute() {
   } finally {
     isSavingRoute.value = false
   }
+}
+
+function sendCurrentRoute() {
+  if (waypoints.value.length < 2 || routeDistance.value === 0) {
+    toast.error('Debe agregar al menos 2 puntos y calcular la ruta')
+    return
+  }
+  
+  const origin = waypoints.value[0]
+  const dest = waypoints.value[waypoints.value.length - 1]
+  const summary = `🚗 *Ruta Planificada*\n\n📍 *Origen:* ${origin.label || `${origin.latlng.lat.toFixed(4)}, ${origin.latlng.lng.toFixed(4)}`}\n🏁 *Destino:* ${dest.label || `${dest.latlng.lat.toFixed(4)}, ${dest.latlng.lng.toFixed(4)}`}\n\n📏 *Distancia:* ${routeDistance.value.toFixed(1)} km\n⏱️ *Duración estimada:* ${formatDur(routeDuration.value)}\n⛽ *Combustible necesario:* ${routeInfo.value.fuelNeeded.toFixed(2)} L\n💰 *Costo estimado:* ${fmtCur(routeInfo.value.cost)}\n\n_Viaje planificado con Planificador de Rutas Cuba_`
+  
+  const encodedText = encodeURIComponent(summary)
+  const phone = vehicleState.value.selectedVehicle?.phone_number || ''
+  
+  if (phone) {
+    window.open(`https://wa.me/${phone.replace(/[^0-9+]/g, '')}?text=${encodedText}`, '_blank')
+  } else {
+    window.open(`https://wa.me/?text=${encodedText}`, '_blank')
+  }
+}
+
+function formatDur(s) {
+  const h = Math.floor(s / 3600)
+  const m = Math.round((s % 3600) / 60)
+  return h > 0 ? `${h}h ${m}min` : `${m} min`
+}
+
+function fmtCur(n) {
+  return `${Math.round(n).toLocaleString('es-ES')} CUP`
 }
 
 function loadRouteOnMap(route) {

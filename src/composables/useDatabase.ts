@@ -6,6 +6,9 @@ interface Vehicle {
   name: string
   consumption: number
   fuelType: string
+  tracker_id?: string | null
+  phone_number?: string | null
+  use_phone_gps?: boolean
 }
 
 interface RouteHistory {
@@ -60,6 +63,9 @@ async function getDb(): Promise<Database> {
         name TEXT NOT NULL,
         consumption REAL NOT NULL,
         fuel_type TEXT NOT NULL,
+        tracker_id TEXT,
+        phone_number TEXT,
+        use_phone_gps INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `)
@@ -112,8 +118,8 @@ export async function loadVehicles(): Promise<Vehicle[]> {
 export async function saveVehicle(vehicle: Vehicle): Promise<Vehicle & { id: number }> {
   const database = await getDb()
   database.run(
-    'INSERT INTO vehicles (name, consumption, fuel_type) VALUES (?, ?, ?)',
-    [vehicle.name, vehicle.consumption, vehicle.fuelType]
+    'INSERT INTO vehicles (name, consumption, fuel_type, tracker_id, phone_number, use_phone_gps) VALUES (?, ?, ?, ?, ?, ?)',
+    [vehicle.name, vehicle.consumption, vehicle.fuelType, vehicle.tracker_id || null, vehicle.phone_number || null, vehicle.use_phone_gps ? 1 : 0]
   )
   
   const result = database.exec('SELECT last_insert_rowid() as id')
