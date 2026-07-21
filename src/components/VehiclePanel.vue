@@ -64,9 +64,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { saveVehicle as saveVehicleDb, deleteVehicle as deleteVehicleDb } from '../composables/useDatabase.js'
+import { saveVehicle as saveVehicleDb, deleteVehicle as deleteVehicleDb } from '../composables/useDatabase'
 
 const props = defineProps({
   vehicles: { type: Array, default: () => [] },

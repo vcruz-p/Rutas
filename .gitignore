@@ -2,16 +2,14 @@
 # Dependencies
 node_modules/
 
-# Build artifacts
+# Build outputs
 dist/
+build/
+target/
 
-# Package lock files
-package-lock.json
-yarn.lock
-
-# IDE files
-.vscode/
-.idea/
+# TypeScript/JavaScript build artifacts
+*.js.map
+*.tsbuildinfo
 
 # Logs
 *.log
@@ -19,77 +17,48 @@ yarn.lock
 # Environment variables
 .env
 .env.local
-.env.*
+*.env.*
 
-# Temporary files
-*.tmp
+# Editors
+.vscode/
+.idea/
 *.swp
+*.swo
 
 # OS generated files
 .DS_Store
 Thumbs.db
 
-# Coverage reports
+# Coverage
 coverage/
 htmlcov/
+*.coverage
 
-# Python cache
+# Python related (if applicable)
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Distribution / packaging
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
 
 # Testing
-.pytest_cache/
 .mypy_cache/
+.pytest_cache/
+.nyc_output/
 
-# Compiled binary files
-*.exe
-*.dll
-*.so
-*.a
-*.out
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
-# Compressed files
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
-
+# Temporary files
+*.tmp
+*.temp
 ```

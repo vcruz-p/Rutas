@@ -106,11 +106,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import L from 'leaflet'
-import { loadVehicles, loadRouteHistory, saveRoute, deleteRoute } from './composables/useDatabase.js'
-import { useMap } from './composables/useMap.js'
+import { loadVehicles, loadRouteHistory, saveRoute, deleteRoute } from './composables/useDatabase'
+import { useMap } from './composables/useMap'
 import WaypointsPanel from './components/WaypointsPanel.vue'
 import VehiclePanel from './components/VehiclePanel.vue'
 import ResultsPanel from './components/ResultsPanel.vue'
