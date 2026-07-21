@@ -1,9 +1,35 @@
-import { initSqlJs } from 'sql.js'
+import { initSqlJs, Database } from 'sql.js'
 
-let db = null
+interface Vehicle {
+  id?: number
+  name: string
+  consumption: number
+  fuelType: string
+}
+
+interface RouteHistory {
+  id?: number
+  vehicle_id?: number | null
+  vehicle_name: string
+  origin_lat: number
+  origin_lng: number
+  origin_label?: string | null
+  dest_lat: number
+  dest_lng: number
+  dest_label?: string | null
+  waypoints?: any[]
+  distance_km: number
+  duration_seconds: number
+  fuel_consumed: number
+  fuel_price: number
+  total_cost: number
+  created_at?: string
+}
+
+let db: Database | null = null
 let dbReady = false
 
-async function getDb() {
+async function getDb(): Promise<Database> {
   if (db) return db
   
   const SQL = await initSqlJs()
@@ -45,46 +71,46 @@ async function getDb() {
   return db
 }
 
-export async function loadVehicles() {
+export async function loadVehicles(): Promise<Vehicle[]> {
   await getDb()
-  const result = db.exec('SELECT * FROM vehicles ORDER BY created_at DESC')
+  const result = db!.exec('SELECT * FROM vehicles ORDER BY created_at DESC')
   if (!result.length) return []
   
   const columns = result[0].columns
   return result[0].values.map(row => {
-    const obj = {}
+    const obj: any = {}
     columns.forEach((col, i) => obj[col] = row[i])
-    return obj
+    return obj as Vehicle
   })
 }
 
-export async function saveVehicle(vehicle) {
+export async function saveVehicle(vehicle: Vehicle): Promise<Vehicle & { id: number }> {
   await getDb()
-  db.run(
+  db!.run(
     'INSERT INTO vehicles (name, consumption, fuel_type) VALUES (?, ?, ?)',
     [vehicle.name, vehicle.consumption, vehicle.fuelType]
   )
   
-  const result = db.exec('SELECT last_insert_rowid() as id')
-  const id = result[0].values[0][0]
+  const result = db!.exec('SELECT last_insert_rowid() as id')
+  const id = result[0].values[0][0] as number
   
   const vehicleData = { ...vehicle, id }
   return vehicleData
 }
 
-export async function deleteVehicle(id) {
+export async function deleteVehicle(id: number): Promise<void> {
   await getDb()
-  db.run('DELETE FROM vehicles WHERE id = ?', [id])
+  db!.run('DELETE FROM vehicles WHERE id = ?', [id])
 }
 
-export async function loadRouteHistory() {
+export async function loadRouteHistory(): Promise<RouteHistory[]> {
   await getDb()
-  const result = db.exec('SELECT * FROM route_history ORDER BY created_at DESC LIMIT 50')
+  const result = db!.exec('SELECT * FROM route_history ORDER BY created_at DESC LIMIT 50')
   if (!result.length) return []
   
   const columns = result[0].columns
   return result[0].values.map(row => {
-    const obj = {}
+    const obj: any = {}
     columns.forEach((col, i) => obj[col] = row[i])
     // Parse waypoints from JSON string
     if (obj.waypoints) {
@@ -94,15 +120,15 @@ export async function loadRouteHistory() {
         obj.waypoints = []
       }
     }
-    return obj
+    return obj as RouteHistory
   })
 }
 
-export async function saveRoute(routeData) {
+export async function saveRoute(routeData: RouteHistory): Promise<void> {
   await getDb()
   const waypointsJson = JSON.stringify(routeData.waypoints || [])
   
-  db.run(
+  db!.run(
     `INSERT INTO route_history (
       vehicle_id, vehicle_name, origin_lat, origin_lng, origin_label,
       dest_lat, dest_lng, dest_label, waypoints,
@@ -127,7 +153,7 @@ export async function saveRoute(routeData) {
   )
 }
 
-export async function deleteRoute(id) {
+export async function deleteRoute(id: number): Promise<void> {
   await getDb()
-  db.run('DELETE FROM route_history WHERE id = ?', [id])
+  db!.run('DELETE FROM route_history WHERE id = ?', [id])
 }
